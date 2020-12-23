@@ -1,0 +1,16 @@
+﻿using RLMapLoader.Components.Logging;
+
+namespace RLMapLoader.Components.Core
+{
+    public abstract class Component
+    {
+        protected string TAG;
+        protected Logger _logger;
+        protected Component()
+        {
+            TAG = GetType().Name;
+            _logger = new Logger(TAG);
+        }
+
+    }
+}

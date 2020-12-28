@@ -57,18 +57,28 @@ namespace RLMapLoader.Components.Core
         /// <param name="args"></param>
         private void ConfigureRunParameters(string[] args)
         {
-            if (args.Length != 2)
-            {
-                throw new Exception("Invalid argument count! Expected 2.");
-            }
 
             _mode = args[0].ToLower();
 
-            var ok = long.TryParse(args[1], out _forMapWorkShopId);
-            if (!ok)
-            {
-                throw new Exception("Invalid second parameter, pass integer ID for workshop map. Hint: call 'list workshop' first.");
+            if (_mode =="load"){
+                
+                if(args.Length != 2)
+                {
+                    throw new Exception("Invalid argument count! Expected at least (2)");
+                }
+
+                var ok = long.TryParse(args[1], out _forMapWorkShopId);
+                if (!ok)
+                {
+                    throw new Exception("Invalid second parameter, pass integer ID for workshop map. Hint: call 'list workshop' first.");
+                }
+
             }
+            else if(_mode == "unload" && args.Length != 1){
+                throw new Exception("Invalid argument count! Expected only 1");
+            }
+
+
 
         }
 

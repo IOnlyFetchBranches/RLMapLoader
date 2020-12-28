@@ -2,9 +2,13 @@
 
 namespace RLMapLoader.Components.Core
 {
+    /// <summary>
+    /// Things that are allowed to modify State
+    /// Also contains logger with tag autoset for convinece
+    /// </summary>
     public abstract class Component
     {
-        protected string TAG;
+        public readonly string TAG;
         protected Logger _logger;
         protected Component()
         {

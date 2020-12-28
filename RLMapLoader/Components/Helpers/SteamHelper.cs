@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using Microsoft.Win32;
 using RLMapLoader.Components.Core;
+using RLMapLoader.Components.Helpers.Extensions;
 using RLMapLoader.Components.Logging;
 using static System.Char;
 
@@ -12,12 +13,12 @@ namespace RLMapLoader.Components.Helpers
 {
     public class SteamHelper : Component
     {
-        private const string STEAM_REG_64 = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Valve\\Steam";
+        private const string STEAM_REG_64 = "SOFTWARE\\Wow6432Node\\Valve\\Steam";
         private const int RL_STEAM_ID = 252950; 
         public  string SteamInstallPath => _sInstallPath ?? LoadSteamRegistryKey("InstallPath");
         
         public bool IsHealthy;
-        private Logger _logger;
+        
 
         private static string _sInstallPath;
         //VDF library data file path, acf Game metadata file path, steamapps folder location, RL Install Path,
@@ -28,11 +29,11 @@ namespace RLMapLoader.Components.Helpers
         /// </summary>
         public SteamHelper()
         {
-            _logger = new Logger(TAG);
+            IsHealthy = SteamInstallPath != null;
             _vdfPath = SteamInstallPath + "\\steamapps\\libraryfolders.vdf";
             _acfPathPrefix = $"\\steamapps\\appmanifest_{RL_STEAM_ID}.acf";
             _libPath = GetLibraryFolders().Find(folderPath => File.Exists(folderPath + _acfPathPrefix));
-            IsHealthy = SteamInstallPath != null && _vdfPath != null;
+           
         }
 
         public string GetRLInstallPath()
@@ -42,8 +43,8 @@ namespace RLMapLoader.Components.Helpers
             try
             {
                 using var rlAcfFile = File.OpenText(_libPath + _acfPathPrefix);
-                var acfFields = JsonDocument.Parse(rlAcfFile.ReadToEnd());
-                var rlDirName = acfFields.RootElement.GetProperty("installDir").GetString();
+                var acfFields = rlAcfFile.ReadToEnd().AcfToStruct();
+                var rlDirName = acfFields.SubACF["AppState"]?.SubItems["installdir"];
                 _rlDir = $"{_libPath}\\steamapps\\common\\{rlDirName}";
 
                 if (_rlDir == null) _logger.LogWarning("Was unable to determine RL install path.");
@@ -60,7 +61,7 @@ namespace RLMapLoader.Components.Helpers
             //start with steam lib base path
             _wsPath ??= $"{_libPath}\\steamapps\\workshop";
             //add id parameter
-            return $"{_wsPath}\\{RL_STEAM_ID}";
+            return $"{_wsPath}\\content\\{RL_STEAM_ID}";
 
         }
 
@@ -81,16 +82,17 @@ namespace RLMapLoader.Components.Helpers
 
         private List<string> GetLibraryFolders()
         {
-            if (IsHealthy) return null;
+            if (!IsHealthy) return null;
 
-            //parse VDF
+            //parse library VDF from steam install cvdf
             try
             {
                 using var libVdf = File.OpenText(_vdfPath);
-                var vdfDoc = JsonDocument.Parse(libVdf.ReadToEnd());
+                var parseMe = libVdf.ReadToEnd().VdfToJson();
+                var vdfDoc = JsonDocument.Parse(parseMe);
 
                 var folderPaths = new List<string>();
-                foreach (var property in vdfDoc.RootElement.EnumerateObject())
+                foreach (var property in vdfDoc.RootElement.GetProperty("LibraryFolders").EnumerateObject())
                 {
                     if (IsDigit(property.Name, 0))
                     {

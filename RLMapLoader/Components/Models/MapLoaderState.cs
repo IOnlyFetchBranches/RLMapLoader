@@ -4,7 +4,8 @@
     {
         public bool IsFirstTime { get; set; } = true;
         public bool IsMapLoaded { get; set; } = false;
-        public string LoadedMapName { get; set; }
+        public string LoadedMapName { get; set; } = null;
+        public string LastKnownMapName { get; set; } = null;
 
     }
 }

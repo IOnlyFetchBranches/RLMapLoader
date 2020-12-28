@@ -2,6 +2,10 @@
 
 namespace RLMapLoader.Components.Core
 {
+    /// <summary>
+    /// Things that are allowed to modify State
+    /// Also contains logger with tag autoset for convinece
+    /// </summary>
     public abstract class Component
     {
         public readonly string TAG;

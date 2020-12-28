@@ -97,6 +97,11 @@ namespace RLMapLoader.Components.Core
 
                 _state.IsMapLoaded = true;
                 _state.LoadedMapName = res.msg;
+
+                if(_state.LastKnownMapName == null)
+                {
+                    _state.LastKnownMapName = _state.LoadedMapName;
+                }
                 return 0;
 
             }

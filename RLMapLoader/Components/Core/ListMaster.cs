@@ -10,13 +10,7 @@ namespace RLMapLoader.Components.Core
 {
     public class ListMaster : Component
     {
-        private readonly MapLoaderState _state;
-
-        public ListMaster(MapLoaderState withState)
-        {
-            _state = withState;
-        }
-
+       
 
         public int List(string[] args)
         {

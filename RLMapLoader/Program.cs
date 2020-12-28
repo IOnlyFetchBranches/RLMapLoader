@@ -151,8 +151,11 @@ namespace RLMapLoader
                         exitCode= new MapInstaller(args, ref withState).PerformLoad();
                         WriteState(withState);
                         break;
+                    case "unload":
+                        exitCode = new MapInstaller(args, ref withState).PerformUnLoad();
+                    break;
                     case "list":
-                        exitCode= new ListMaster(withState).List(args);
+                        exitCode= new ListMaster().List(args);
                         break;
                     case "status":
                         ShowAppStatus(withState);

@@ -137,6 +137,7 @@ namespace RLMapLoader
         {
             Console.WriteLine($"\n|{"Is Map Loaded",15} | {withState.IsMapLoaded}");
             Console.WriteLine($"|{"Loaded Map Name",15} | {withState.LoadedMapName}");
+            Console.WriteLine($"|{"Last Known Map Name",15} | {withState.LastKnownMapName}");
         }
 
         private static int ProcessArgs(string[] args, MapLoaderState withState)

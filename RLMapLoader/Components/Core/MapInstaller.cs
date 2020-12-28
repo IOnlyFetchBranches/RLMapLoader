@@ -67,7 +67,7 @@ namespace RLMapLoader.Components.Core
                     throw new Exception("Invalid argument count! Expected at least (2)");
                 }
 
-                var ok = long.TryParse(args[1], out _forMapWorkShopId);
+                var ok = long.TryParse(args[1].Trim(), out _forMapWorkShopId);
                 if (!ok)
                 {
                     throw new Exception("Invalid second parameter, pass integer ID for workshop map. Hint: call 'list workshop' first.");
@@ -102,7 +102,13 @@ namespace RLMapLoader.Components.Core
                 if (!res.ok)
                 {
                     _logger.LogError($"Unsuccessful install execution detected. \nMsg: {res.msg}");
+                    Console.WriteLine("Install Failed.");
                     return 1;
+                }
+
+                if(_state.LastKnownMapName != null)
+                {
+                    _state.LastKnownMapName = _state.LoadedMapName; 
                 }
 
                 _state.IsMapLoaded = true;
@@ -112,6 +118,8 @@ namespace RLMapLoader.Components.Core
                 {
                     _state.LastKnownMapName = _state.LoadedMapName;
                 }
+
+                Console.WriteLine("Done.");
                 return 0;
 
             }
@@ -130,15 +138,22 @@ namespace RLMapLoader.Components.Core
                 return 1;
             }
             var baseInstallLoc = $"{_modFolderPath}\\{InstallConstants.StagingFileName}";
+            var movLoc = baseInstallLoc + ".off";
             try
             {
-                File.Move(baseInstallLoc, baseInstallLoc + ".off");
+                if (File.Exists(movLoc))
+                {
+                    File.Delete(movLoc);
+                }
+
+                File.Move(baseInstallLoc,movLoc);
                 //state updates
                 _state.IsMapLoaded = false;
                 _state.LastKnownMapName = _state.LoadedMapName;
                 _state.LoadedMapName = null;
                 
-                _logger.LogInfo("Done.");
+                Console.WriteLine("Done.");
+              
             }catch(Exception e)
             {
                 _logger.LogError("Could not unload map!", e);

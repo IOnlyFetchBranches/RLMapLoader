@@ -2,9 +2,14 @@
 using RLMapLoader.Components.Logging;
 using RLMapLoader.Components.Models;
 using System;
+using System.ComponentModel.Design.Serialization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Xml.Serialization;
+using RLMapLoader.Components.Core.Constants;
 
 namespace RLMapLoader
 {
@@ -16,25 +21,65 @@ namespace RLMapLoader
         private static Logger _programLogger = new Logger(TAG);
         static int Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
-            if(args.Length == 0)
+            //Resolve state, only used for settings/previous run status.
+            var state = GetProgramState();
+            if (args.Length == 0)
             {
                 ShowHelp();
-                return 1;
+                return BeginCommandLoop(state);
             }
             else
             {
-                //Resolve state
-                var state = GetProgramState();
                 try
                 {
                     return ProcessArgs(args, state);
                 }
                 finally
                 {
+                    state.IsFirstTime = false;
                     WriteState(state);
                 }
             }
+        }
+
+        private static int BeginCommandLoop(MapLoaderState withState)
+        {
+            var loopCount = 0;
+            var invalid = true;
+            while (true)
+            {
+                loopCount++;
+                Console.WriteLine("\nPlease enter a command...");
+                var input = Console.ReadLine();
+                //Prevent console spam
+                if (loopCount == 5)
+                {
+                    Console.Clear();
+                    loopCount = 0;
+                }
+
+                var args = input.Split(null);
+
+                if (input.ToLower() == "exit")
+                {
+                    _programLogger.LogInfo("Closing...");
+                    Thread.Sleep(5000);
+                    return 0;
+                }
+                else
+                {
+                    try
+                    {
+                        invalid = ProcessArgs(args, withState) == 1;
+                    }
+                    catch(Exception e)
+                    {
+                        _programLogger.LogError($"Caught program exception, while running command: {args.Aggregate( (i,j) => i + ' ' + j)}", e);
+                    }
+                }
+
+            }
+
         }
 
         private static MapLoaderState GetProgramState()
@@ -78,27 +123,40 @@ namespace RLMapLoader
 
             writer.WriteLine(b64SerState);
 
-            _programLogger.LogInfo("State writing successful.");
+            _programLogger.LogDebug("State writing successful.");
         }
 
         private static bool DoesStateExist() => File.Exists(PROGRAM_STATE_PATH);
 
         private static void ShowHelp()
         {
-            Console.WriteLine("Currently supports the following usages: Load");
+            Console.WriteLine("Currently supports the following usages: Status, Load <workshopId>, List workshop");
+        }
+
+        private static void ShowAppStatus(MapLoaderState withState)
+        {
+            Console.WriteLine($"\n|{"Is Map Loaded",15} | {withState.IsMapLoaded}");
+            Console.WriteLine($"|{"Loaded Map Name",15} | {withState.LoadedMapName}");
         }
 
         private static int ProcessArgs(string[] args, MapLoaderState withState)
         {
             var action = args[0];
+            int exitCode;
 
             switch (action.ToLower())
-            {
-                case "load":
-                    return new MapInstaller(args, ref withState).PerformLoad();
-                case "list":
-                    return new ListMaster(withState).List(args);
-                case "sync":
+                {
+                    case "load":
+                        exitCode= new MapInstaller(args, ref withState).PerformLoad();
+                        WriteState(withState);
+                        break;
+                    case "list":
+                        exitCode= new ListMaster(withState).List(args);
+                        break;
+                    case "status":
+                        ShowAppStatus(withState);
+                        return 0;
+                    case "sync":
                     /*
                      * TODO: for fun?
                      * sync from <userCode>
@@ -109,10 +167,13 @@ namespace RLMapLoader
                      * For security should check file size, update name to the hash of the file, and file extension.
                      *
                      */
-                default:
-                    ShowHelp();
-                    return 1;
-            }
+                    default:
+                        ShowHelp();
+                        return 1;
+                }
+
+            return exitCode;
         }
+
     } 
 }

@@ -4,7 +4,7 @@ namespace RLMapLoader.Components.Core
 {
     public abstract class Component
     {
-        protected string TAG;
+        public readonly string TAG;
         protected Logger _logger;
         protected Component()
         {

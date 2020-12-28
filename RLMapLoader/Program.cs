@@ -130,7 +130,7 @@ namespace RLMapLoader
 
         private static void ShowHelp()
         {
-            Console.WriteLine("Currently supports the following usages: Status, Load <workshopId>, Unload, List workshop");
+            Console.WriteLine("Currently supports the following usages: 'status', 'load <workshopId>', 'unload', 'list workshop', 'exit'");
         }
 
         private static void ShowAppStatus(MapLoaderState withState)

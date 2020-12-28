@@ -130,9 +130,15 @@ namespace RLMapLoader.Components.Core
                 return 1;
             }
             var baseInstallLoc = $"{_modFolderPath}\\{InstallConstants.StagingFileName}";
+            var movLoc = baseInstallLoc + ".off";
             try
             {
-                File.Move(baseInstallLoc, baseInstallLoc + ".off");
+                if (File.Exists(movLoc))
+                {
+                    File.Delete(movLoc);
+                }
+
+                File.Move(baseInstallLoc,movLoc);
                 //state updates
                 _state.IsMapLoaded = false;
                 _state.LastKnownMapName = _state.LoadedMapName;

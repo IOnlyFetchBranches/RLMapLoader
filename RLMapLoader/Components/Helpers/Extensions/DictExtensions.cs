@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using RLMapLoader.Components.Logging;
 
 namespace RLMapLoader.Components.Helpers.Extensions
@@ -30,6 +31,17 @@ namespace RLMapLoader.Components.Helpers.Extensions
 
             return dict;
 
+        }
+
+        public static string ToKeyPairString(this Dictionary<string, string> dict, Logger logger = null)
+        {
+            var sb = new StringBuilder();
+            foreach (var pair in dict)
+            {
+                sb.AppendLine($"{pair.Key} : {pair.Value}");
+            }
+
+            return sb.ToString();
         }
     }
 }

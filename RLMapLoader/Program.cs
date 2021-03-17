@@ -8,7 +8,9 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
+using RLMapLoader.Components;
 using RLMapLoader.Components.Core.Constants;
 
 namespace RLMapLoader
@@ -19,10 +21,19 @@ namespace RLMapLoader
         private static string PROGRAM_STATE_PATH = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + $"\\.rlLoader";
 
         private static Logger _programLogger = new Logger(TAG);
+        private static UserModule _user;
+
         static int Main(string[] args)
         {
             //Resolve state, only used for settings/previous run status.
             var state = GetProgramState();
+            
+            //Check for previous login. If active, instantiate user module here
+            if (state.IsLoggedOn)
+            {
+                CreateUserModule(ref state);
+            }
+
             if (args.Length == 0)
             {
                 ShowHelp();
@@ -41,6 +52,7 @@ namespace RLMapLoader
                 }
             }
         }
+
 
         private static int BeginCommandLoop(MapLoaderState withState)
         {
@@ -78,6 +90,7 @@ namespace RLMapLoader
                     }
                 }
 
+               
             }
 
         }
@@ -99,7 +112,7 @@ namespace RLMapLoader
         }
 
         private static MapLoaderState ReadState(StreamReader fromFile)
-        {
+        { 
             _programLogger.LogDebug("Reading state.");
             using (fromFile)
             {
@@ -135,9 +148,14 @@ namespace RLMapLoader
 
         private static void ShowAppStatus(MapLoaderState withState)
         {
+            Console.WriteLine($"|{"Authenticated",15} | {withState.IsLoggedOn}");
+            Console.WriteLine($"|{"Current User",15} | {withState.PrivateUserEmail}");
+            Console.WriteLine($"|{"User ID",15} | {withState.UserId}");
+            Console.WriteLine(Environment.NewLine);
             Console.WriteLine($"\n|{"Is Map Loaded",15} | {withState.IsMapLoaded}");
             Console.WriteLine($"|{"Loaded Map Name",15} | {withState.LoadedMapName}");
             Console.WriteLine($"|{"Last Known Map Name",15} | {withState.LastKnownMapName}");
+
         }
 
         private static int ProcessArgs(string[] args, MapLoaderState withState)
@@ -153,6 +171,7 @@ namespace RLMapLoader
                         break;
                     case "unload":
                         exitCode = new MapInstaller(args, ref withState).PerformUnLoad();
+                        WriteState(withState);
                     break;
                     case "list":
                         exitCode= new ListMaster().List(args);
@@ -160,7 +179,18 @@ namespace RLMapLoader
                     case "status":
                         ShowAppStatus(withState);
                         return 0;
-                    case "sync":
+                    case "login":
+                        //TODO: run this method async? Right now, now really a big deal imo. Will need to be converted in UI tho
+                        exitCode = CreateUserModule(ref withState);
+                        WriteState(withState);
+                    break;
+                    case "logout":
+                        //TODO: run this method async? Right now, now really a big deal imo. Will need to be converted in UI tho
+                        exitCode = DestroyUserModule(ref withState);
+                        WriteState(withState);
+                    break;
+
+                case "sync":
                     /*
                      * TODO: for fun?
                      * sync from <userCode>
@@ -175,6 +205,43 @@ namespace RLMapLoader
                         ShowHelp();
                         return 1;
                 }
+
+            return exitCode;
+        }
+
+        //TODO:Convert user login logic to async for UI
+        private static int CreateUserModule(ref MapLoaderState withState)
+        {
+            if (withState.IsLoggedOn && _user != null)
+            {
+                _programLogger.LogError("User already logged on. Call logout first.");
+                return 1;
+            }
+            _user = new UserModule();
+            var ok = _user.InitializeAsync().Result;
+            if (!ok)
+            {
+                return 1;
+            }
+            withState.IsLoggedOn = _user.IsActive;
+            withState.PrivateUserEmail = _user.AuthProfile.User.Email;
+            withState.UserId = _user.AuthProfile.User.LocalId;
+            return 0;
+        }
+        private static int DestroyUserModule(ref MapLoaderState withState)
+        {
+            if (!withState.IsLoggedOn)
+            {
+                _programLogger.LogError("User not logged on. Call login first.");
+                return 1;
+            }
+            var exitCode =   _user.LogoutAsync().Result ? 0 : 1;
+            if (exitCode == 0)
+            {
+                withState.UserId = "";
+                withState.PrivateUserEmail = "";
+                withState.IsLoggedOn = false;
+            }
 
             return exitCode;
         }

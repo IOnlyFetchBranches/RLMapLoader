@@ -7,7 +7,7 @@ namespace RLMapLoader.Components.Core
 {
     /// <summary>
     /// Things that are allowed to modify State
-    /// Also contains logger with tag autoset for convinece
+    /// Also contains logger with tag autoset 
     /// </summary>
     public abstract class Component
     {

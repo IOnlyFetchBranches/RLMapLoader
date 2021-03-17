@@ -2,5 +2,4 @@
 //TODONE: implement install logic
 //TODONE: implment listing logic 
 //TODONE: implement SteamHelper.GetRLWorkShopDirectory
-//TODO: implement google drive to store maps
-//TODO: implement sync/sync install strategy in MapInstaller
+//TODO: implement sync/group install strategy in MapInstaller

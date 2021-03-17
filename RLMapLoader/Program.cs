@@ -3,6 +3,7 @@ using RLMapLoader.Components.Logging;
 using RLMapLoader.Components.Models;
 using System;
 using System.ComponentModel.Design.Serialization;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -22,16 +23,23 @@ namespace RLMapLoader
 
         private static Logger _programLogger = new Logger(TAG);
         private static UserModule _user;
+        private static SyncModule _syncModule;
 
         static int Main(string[] args)
         {
+            Console.WriteLine(@"Loading, please wait...");
             //Resolve state, only used for settings/previous run status.
             var state = GetProgramState();
             
             //Check for previous login. If active, instantiate user module here
             if (state.IsLoggedOn)
             {
-                CreateUserModule(ref state);
+                var status = CreateUserModule(ref state);
+                if (status == 1)
+                {
+                    _programLogger.LogError("Could not recreate user module. Exiting.");
+                    return 1;
+                }
             }
 
             if (args.Length == 0)
@@ -53,6 +61,7 @@ namespace RLMapLoader
             }
         }
 
+      
 
         private static int BeginCommandLoop(MapLoaderState withState)
         {
@@ -75,7 +84,7 @@ namespace RLMapLoader
                 if (input.ToLower() == "exit")
                 {
                     _programLogger.LogInfo("Closing...");
-                    Thread.Sleep(5000);
+                    Cleanup();
                     return 0;
                 }
                 else
@@ -83,6 +92,10 @@ namespace RLMapLoader
                     try
                     {
                         invalid = ProcessArgs(args, withState) == 1;
+                        if (invalid)
+                        {
+                            //TODO:do something soon, don't need too now while debugging.
+                        }
                     }
                     catch(Exception e)
                     {
@@ -93,6 +106,12 @@ namespace RLMapLoader
                
             }
 
+        }
+
+        private static void Cleanup()
+        {
+            Thread.Sleep(1000);
+            //Eventually will basically call dispose on _sync module=
         }
 
         private static MapLoaderState GetProgramState()
@@ -143,7 +162,7 @@ namespace RLMapLoader
 
         private static void ShowHelp()
         {
-            Console.WriteLine("Currently supports the following usages: 'status', 'load <workshopId>', 'unload', 'list workshop', 'exit'");
+            Console.WriteLine(@"Currently supports the following usages: 'status', 'load <workshopId>', 'unload', 'list workshop', 'login' (will open browser for signin), 'logout', 'sync <syncCommand> <syncCommandArguments', 'exit'");
         }
 
         private static void ShowAppStatus(MapLoaderState withState)
@@ -174,7 +193,7 @@ namespace RLMapLoader
                         WriteState(withState);
                     break;
                     case "list":
-                        exitCode= new ListMaster().List(args);
+                        exitCode= new RLModListMaster().List(args);
                         break;
                     case "status":
                         ShowAppStatus(withState);
@@ -190,7 +209,7 @@ namespace RLMapLoader
                         WriteState(withState);
                     break;
 
-                case "sync":
+                    case "sync":
                     /*
                      * TODO: for fun?
                      * sync from <userCode>
@@ -201,6 +220,13 @@ namespace RLMapLoader
                      * For security should check file size, update name to the hash of the file, and file extension.
                      *
                      */
+                    if (_user == null || !_user.IsActive)
+                    {
+                        Console.WriteLine("No user currently active! Did you call 'login' sucessfully?");
+                        return 1;
+                    }
+                    _syncModule ??= new SyncModule(ref withState, ref _user);
+                    return _syncModule.Run(args); //TODO: refactor everything to .run (module format), eventually RunAsync() will be the model for all modules once the gui is here...
                     default:
                         ShowHelp();
                         return 1;

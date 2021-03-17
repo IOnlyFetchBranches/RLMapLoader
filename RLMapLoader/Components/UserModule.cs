@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Firebase.Auth;
@@ -6,18 +7,22 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Util;
 using Google.Apis.Util.Store;
+using Google.Cloud.Firestore;
 using Microsoft.Extensions.Configuration;
 using RLMapLoader.Components.Core;
+using RLMapLoader.Components.Core.Constants;
+using RLMapLoader.Components.Helpers.Extensions;
 
 namespace RLMapLoader.Components
 {
     //TODO:Load secrets from Google KMS
     public class UserModule : Component 
     {
-        private IConfigurationRoot _configuration;
+        
 
         private static UserCredential _gOCred;
-        private FirebaseAuthLink _fbAuth;
+        private static FirebaseAuthLink _fbAuth;
+        
         public FirebaseAuthLink AuthProfile
         {
             get
@@ -34,22 +39,29 @@ namespace RLMapLoader.Components
                 return _fbAuth;
             }
         }
+        /// <summary>
+        /// Make sure IsActive!
+        /// </summary>
+        public RLMLUser UserModel { get; set; }
+        public DocumentReference UserReference { get; set; }
+        private FirestoreDb _db;
+
 
         public bool IsActive => _fbAuth != null;
 
-        public UserModule()
-        {
-            _configuration  = new ConfigurationBuilder()
-                .AddUserSecrets(typeof(Program).Assembly)
-                .Build();
-        }
-
+       
         public async Task<bool> InitializeAsync()
         {
             try
             {
+                _db = await FirestoreDb.CreateAsync(GlobalConstants.G_PROJ_NAME);
+                //Debug
+                _logger.LogDebug($"established link with DB " + _db.ProjectId);
                 await GetGoogleOauthTokenAsync();
                 await LoginToRLMLAsync();
+               
+
+                
             }
             catch(Exception e)
             {
@@ -71,8 +83,8 @@ namespace RLMapLoader.Components
             var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                 new ClientSecrets
                 {
-                    ClientId = _configuration["Auth:GOauthWebCID"],
-                    ClientSecret = _configuration["Auth:GOauthWebCSec"]
+                    ClientId = Config["Auth:GOauthWebCID"],
+                    ClientSecret = Config["Auth:GOauthWebCSec"]
                 },
                 new[] { "https://www.googleapis.com/auth/userinfo.email" },
                 "user",
@@ -102,9 +114,30 @@ namespace RLMapLoader.Components
                 await _gOCred.RefreshTokenAsync(CancellationToken.None);
             }
 
-            var authProvider = new FirebaseAuthProvider(new FirebaseConfig(_configuration["Auth:FbseKey"]));
+            var authProvider = new FirebaseAuthProvider(new FirebaseConfig(Config["Auth:FbseKey"]));
             _fbAuth = await authProvider.SignInWithOAuthAsync(FirebaseAuthType.Google, _gOCred.Token.AccessToken);
-            return;
+
+            if (_db == null)
+            {
+                WaitDB();
+            }
+            //Load user profile 
+            var userRes = _db.Collection("users").Document(_fbAuth.User.LocalId);
+            UserReference = userRes;
+            var user = await userRes.GetSnapshotAsync();
+            UserModel = user.ToUserModel();
+        }
+
+        private void WaitDB()
+        {
+            _logger.LogInfo("Waiting for DB link...");
+            var waitCount = 0;
+            while (_db == null && waitCount < GlobalConstants.MASTER_DB_WAIT_COUNT)
+            {
+                Thread.Sleep(100);
+                waitCount++;
+                if(waitCount == GlobalConstants.MASTER_DB_WAIT_COUNT) throw new TimeoutException("Could not establish DB link!");
+            }
         }
 
 
@@ -123,6 +156,7 @@ namespace RLMapLoader.Components
 
                 _gOCred = null;
                 _fbAuth = null;
+                UserModel = null;
                 return true;
             }
             catch (Exception e)
